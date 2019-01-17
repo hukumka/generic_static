@@ -1,0 +1,10 @@
+[package]
+name = "generic_static"
+version = "0.1.0"
+authors = ["hukumka <hukumka212@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+[dev-dependencies]
+lazy_static = "1.2.0"
