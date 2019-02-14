@@ -2,7 +2,7 @@
 
 lets consider following code:
 
-```
+```rust
 use std::sync::Once;
 
 trait X{
@@ -54,7 +54,7 @@ This crate was designed to solve this particular problem.
 
 Lets make some changes:
 
-```
+```rust
 use generic_static::StaticTypeMap;
 use std::sync::Once;
 
