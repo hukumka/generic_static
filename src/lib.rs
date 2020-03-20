@@ -66,6 +66,8 @@
 //! // so we use lazy initialization
 //! fn generic<T: X + 'static>() -> &'static str{ // T is bound to 'static
 //!     static mut VALUE: Option<StaticTypeMap<String>> = None;
+//!     // Instead of `std::sync::Once` one might consider usage of
+//!     // crate `once_cell`
 //!     static INIT: Once = Once::new();
 //!
 //!     let map = unsafe{
@@ -141,11 +143,12 @@ impl<T: 'static> StaticTypeMap<T> {
                 return &reference;
             }
         }
+        let value = f();
         let mut writer = self.map.write().unwrap();
         writer.entry(TypeId::of::<Type>()).or_insert_with(|| {
             // otherwise construct new value and put inside map
             // allocate value on heap
-            let boxed = Box::new(f());
+            let boxed = Box::new(value);
             // leak it's value until program is terminated
             Box::leak(boxed)
         })
@@ -155,5 +158,35 @@ impl<T: 'static> StaticTypeMap<T> {
 impl<T: 'static> Default for StaticTypeMap<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Once;
+
+    #[test]
+    fn deadlock_issue4() {
+        // Init StaticTypeMap
+        static mut VALUE: Option<StaticTypeMap<String>> = None;
+        static INIT: Once = Once::new();
+
+        fn map() -> &'static StaticTypeMap<String> {
+            unsafe {
+                INIT.call_once(|| {
+                    VALUE = Some(StaticTypeMap::new());
+                });
+                VALUE.as_ref().unwrap()
+            }
+        }
+
+        fn get_u32_value() -> &'static str {
+            map().call_once::<u32, _>(|| "u32".to_string())
+        }
+
+        let res = map().call_once::<u64, _>(|| format!("{} and", get_u32_value()));
+
+        assert_eq!(res, "u32 and")
     }
 }
