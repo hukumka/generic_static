@@ -138,17 +138,16 @@ impl<T: 'static> StaticTypeMap<T>{
                 return &reference;
             }
         }
-        // otherwise construct new value and put inside map
-        // allocate value on heap
-        let boxed = Box::new(f());
-        // leak it's value until program is terminated
-        let reference: &'static T = Box::leak(boxed);
-
         let mut writer = self.map.write().unwrap();
-        let old = writer.insert(TypeId::of::<Type>(), reference);
-        if old.is_some(){
-            panic!("StaticTypeMap value was reinitialized. This is a bug.")
-        }
+        let reference = writer.entry(TypeId::of::<Type>())
+            .or_insert_with(|| {
+                // otherwise construct new value and put inside map
+                // allocate value on heap
+                let boxed = Box::new(f());
+                // leak it's value until program is terminated
+                let reference: &'static T = Box::leak(boxed);
+                reference
+            });
         reference
     }
 }
