@@ -106,22 +106,23 @@
 //! Current implementation uses RwLock to make it safe in concurrent
 //! applications, which will be slightly slower then regular
 
-use std::sync::RwLock;
 use std::any::TypeId;
 use std::collections::HashMap;
+use std::sync::RwLock;
 
-
-pub struct StaticTypeMap<T: 'static>{
-    map: RwLock<HashMap<TypeId, &'static T>>
+pub struct StaticTypeMap<T: 'static> {
+    map: RwLock<HashMap<TypeId, &'static T>>,
 }
 
-pub struct Entry<Type: 'static>{
-    _marker: std::marker::PhantomData<Type>
+pub struct Entry<Type: 'static> {
+    _marker: std::marker::PhantomData<Type>,
 }
 
-impl<T: 'static> StaticTypeMap<T>{
-    pub fn new() -> Self{
-        Self{map: RwLock::new(HashMap::new())}
+impl<T: 'static> StaticTypeMap<T> {
+    pub fn new() -> Self {
+        Self {
+            map: RwLock::new(HashMap::new()),
+        }
     }
 
     /// Initialize static value corresponding to provided type.
@@ -129,32 +130,26 @@ impl<T: 'static> StaticTypeMap<T>{
     /// Initialized value will stay on heap until program terminated.
     /// No drop method will be called.
     pub fn call_once<Type, Init>(&'static self, f: Init) -> &'static T
-        where Type: 'static, Init: FnOnce() -> T
+    where
+        Type: 'static,
+        Init: FnOnce() -> T,
     {
         // If already initialized, just return stored value
         {
             let reader = self.map.read().unwrap();
-            if let Some(ref reference) = reader.get(&TypeId::of::<Type>()){
+            if let Some(ref reference) = reader.get(&TypeId::of::<Type>()) {
                 return &reference;
             }
         }
         let mut writer = self.map.write().unwrap();
-        let reference = writer.entry(TypeId::of::<Type>())
-            .or_insert_with(|| {
-                // otherwise construct new value and put inside map
-                // allocate value on heap
-                let boxed = Box::new(f());
-                // leak it's value until program is terminated
-                let reference: &'static T = Box::leak(boxed);
-                reference
-            });
+        let reference = writer.entry(TypeId::of::<Type>()).or_insert_with(|| {
+            // otherwise construct new value and put inside map
+            // allocate value on heap
+            let boxed = Box::new(f());
+            // leak it's value until program is terminated
+            let reference: &'static T = Box::leak(boxed);
+            reference
+        });
         reference
     }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
 }
