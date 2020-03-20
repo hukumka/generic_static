@@ -142,14 +142,18 @@ impl<T: 'static> StaticTypeMap<T> {
             }
         }
         let mut writer = self.map.write().unwrap();
-        let reference = writer.entry(TypeId::of::<Type>()).or_insert_with(|| {
+        writer.entry(TypeId::of::<Type>()).or_insert_with(|| {
             // otherwise construct new value and put inside map
             // allocate value on heap
             let boxed = Box::new(f());
             // leak it's value until program is terminated
-            let reference: &'static T = Box::leak(boxed);
-            reference
-        });
-        reference
+            Box::leak(boxed)
+        })
+    }
+}
+
+impl<T: 'static> Default for StaticTypeMap<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
