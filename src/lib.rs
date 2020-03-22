@@ -111,13 +111,10 @@
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::RwLock;
+use once_cell::sync::OnceCell;
 
 pub struct StaticTypeMap<T: 'static> {
-    map: RwLock<HashMap<TypeId, &'static T>>,
-}
-
-pub struct Entry<Type: 'static> {
-    _marker: std::marker::PhantomData<Type>,
+    map: RwLock<HashMap<TypeId, &'static OnceCell<T>>>,
 }
 
 impl<T: 'static> StaticTypeMap<T> {
@@ -139,19 +136,22 @@ impl<T: 'static> StaticTypeMap<T> {
         // If already initialized, just return stored value
         {
             let reader = self.map.read().unwrap();
-            if let Some(ref reference) = reader.get(&TypeId::of::<Type>()) {
-                return &reference;
+            if let Some(reference) = reader.get(&TypeId::of::<Type>()) {
+                return reference.get_or_init(f)
             }
         }
-        let value = f();
-        let mut writer = self.map.write().unwrap();
-        writer.entry(TypeId::of::<Type>()).or_insert_with(|| {
-            // otherwise construct new value and put inside map
-            // allocate value on heap
-            let boxed = Box::new(value);
-            // leak it's value until program is terminated
-            Box::leak(boxed)
-        })
+        let cell = {
+            let mut writer = self.map.write().unwrap();
+            let cell = writer
+                .entry(TypeId::of::<Type>())
+                .or_insert_with(|| {
+                    let boxed = Box::new(OnceCell::new());
+                    Box::leak(boxed)
+                });
+            *cell
+        };
+        cell
+            .get_or_init(f)
     }
 }
 
