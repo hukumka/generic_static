@@ -121,11 +121,12 @@ impl<T: 'static> StaticTypeMap<T> {
         Init: FnOnce() -> T,
     {
         // If already initialized, just return stored value
-        {
+        let cell = {
             let reader = self.map.read().unwrap();
-            if let Some(reference) = reader.get(&TypeId::of::<Type>()) {
-                return reference.get_or_init(f)
-            }
+            reader.get(&TypeId::of::<Type>()).cloned() // Clone reference
+        };
+        if let Some(cell) = cell {
+            return cell.get_or_init(f);
         }
         let cell = {
             let mut writer = self.map.write().unwrap();
@@ -151,21 +152,12 @@ impl<T: 'static> Default for StaticTypeMap<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Once;
 
     #[test]
     fn deadlock_issue4() {
-        // Init StaticTypeMap
-        static mut VALUE: Option<StaticTypeMap<String>> = None;
-        static INIT: Once = Once::new();
-
         fn map() -> &'static StaticTypeMap<String> {
-            unsafe {
-                INIT.call_once(|| {
-                    VALUE = Some(StaticTypeMap::new());
-                });
-                VALUE.as_ref().unwrap()
-            }
+            static VALUE: OnceCell<StaticTypeMap<String>> = OnceCell::new();
+            VALUE.get_or_init(|| StaticTypeMap::new())
         }
 
         fn get_u32_value() -> &'static str {
