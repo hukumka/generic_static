@@ -3,7 +3,7 @@
 //! lets consider following code:
 //!
 //! ```
-//! use std::sync::Once;
+//! use once_cell::sync::OnceCell;
 //!
 //! trait X{
 //!     fn string() -> String;
@@ -12,15 +12,11 @@
 //! // having to recompute string() over and over might be expensive (not in this example, but still)
 //! // so we use lazy initialization
 //! fn generic<T: X>() -> &'static str{
-//!     static mut VALUE: Option<String> = None;
-//!     static INIT: Once = Once::new();
+//!     static VALUE: OnceCell<String> = OnceCell::new();
 //!
-//!     unsafe{
-//!         INIT.call_once(||{
-//!             VALUE = Some(T::string());
-//!         });
-//!         VALUE.as_ref().unwrap().as_str()
-//!     }
+//!     VALUE.get_or_init(||{
+//!         T::string()
+//!     })
 //! }
 //!
 //! // And now it can be used like this
@@ -56,7 +52,7 @@
 //!
 //! ```
 //! use generic_static::StaticTypeMap;
-//! use std::sync::Once;
+//! use once_cell::sync::OnceCell;
 //!
 //! trait X{
 //!     fn string() -> String;
@@ -65,17 +61,8 @@
 //! // having to recompute string() over and over might be expensive (not in this example, but still)
 //! // so we use lazy initialization
 //! fn generic<T: X + 'static>() -> &'static str{ // T is bound to 'static
-//!     static mut VALUE: Option<StaticTypeMap<String>> = None;
-//!     // Instead of `std::sync::Once` one might consider usage of
-//!     // crate `once_cell`
-//!     static INIT: Once = Once::new();
-//!
-//!     let map = unsafe{
-//!         INIT.call_once(||{
-//!             VALUE = Some(StaticTypeMap::new());
-//!         });
-//!         VALUE.as_ref().unwrap()
-//!     };
+//!     static VALUE: OnceCell<StaticTypeMap<String>> = OnceCell::new();
+//!     let map = VALUE.get_or_init(|| StaticTypeMap::new());
 //!
 //!     map.call_once::<T, _>(||{
 //!         T::string()
