@@ -1,8 +1,12 @@
 [package]
 name = "generic_static"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["hukumka <hukumka212@gmail.com>"]
 edition = "2018"
+license-file = "LICENSE"
+description = "Generic static variables in generic functions."
+repository = "https://github.com/hukumka/generic_static" 
+readme = "Readme.md"
 
 [dependencies]
 once_cell = "1.3"
